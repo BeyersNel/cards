@@ -13,6 +13,10 @@ Each card reads as **angle × domain** (from `cards.pdf`):
 
 All artwork (back, 52 faces, suit glyphs, domain icons) is painted procedurally with Canvas 2D at runtime. There are no image assets.
 
+**Live:** [https://beyersnel.github.io/cards/](https://beyersnel.github.io/cards/)
+
+Pushes to `main` build with Vite and deploy to GitHub Pages via Actions (`.github/workflows/deploy-pages.yml`).
+
 ## Run
 
 ```bash
