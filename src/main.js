@@ -1,0 +1,241 @@
+import * as THREE from 'three';
+import gsap from 'gsap';
+
+import { createAtmosphere } from './scene/atmosphere.js';
+import { createLighting } from './scene/lighting.js';
+import { createPost } from './scene/post.js';
+import { Deck } from './deck/deck.js';
+import { createSharedMaterials, createFaceMaterial, setFace } from './deck/cardMesh.js';
+import { CARDS, drawRandomCard } from './deck/cardData.js';
+import { arrive, shuffle, drawAndExit, reveal, dismiss } from './anim/timeline.js';
+import { createInput } from './input.js';
+import { renderContactSheet } from './debug/contactSheet.js';
+
+const params = new URLSearchParams(location.search);
+
+if (params.has('sheet')) {
+  renderContactSheet();
+} else {
+  start();
+}
+
+function start() {
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const narrow = Math.min(window.innerWidth, window.innerHeight) < 600;
+  const lite = params.has('lite') || narrow || (navigator.hardwareConcurrency ?? 8) <= 4;
+  const noBloom = params.has('lite') || (navigator.hardwareConcurrency ?? 8) <= 2;
+  if (params.has('fast')) gsap.globalTimeline.timeScale(4);
+
+  // ------------------------------------------------------------ renderer
+  const canvas = document.getElementById('scene');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, lite ? 1.5 : 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 120);
+  const cameraBase = new THREE.Vector3(0, 0, 12);
+
+  const atmosphere = createAtmosphere(scene, { lite });
+  atmosphere.setPixelRatio(renderer.getPixelRatio());
+  const lights = createLighting(scene, renderer);
+  const post = createPost(renderer, scene, camera, { lite, noBloom });
+
+  // ------------------------------------------------------------ deck
+  const shared = createSharedMaterials(renderer);
+  const deck = new Deck(shared);
+  scene.add(deck.root);
+
+  const REVEAL = { position: { x: 0, y: 0.38, z: 3 }, scale: 1.12 };
+
+  // fit camera distance so the revealed card (and the deck) fit any aspect
+  const fitCamera = () => {
+    const aspect = window.innerWidth / window.innerHeight;
+    const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const needW = 3.3; // revealed card width + margin
+    const needH = 5.6; // revealed card height + room for the reading text
+    const dW = needW / (2 * tanHalf * aspect);
+    const dH = needH / (2 * tanHalf);
+    cameraBase.z = Math.max(12, REVEAL.position.z + Math.max(dW, dH));
+    // shrink the shuffle swirl (~9.7 units wide) to fit narrow screens, allowing slight overflow
+    const visibleW = 2 * tanHalf * cameraBase.z * aspect;
+    deck.flowScale = Math.min(0.74, (visibleW * 1.2) / 9.7);
+  };
+
+  const onResize = () => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    camera.aspect = w / h;
+    fitCamera();
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+    post.setSize(w, h);
+  };
+  window.addEventListener('resize', onResize);
+  onResize();
+
+  // ------------------------------------------------------------ ui
+  const hint = document.getElementById('hint');
+  const reading = document.getElementById('reading');
+  const readingAngle = reading.querySelector('.reading__angle');
+  const readingSubtitle = reading.querySelector('.reading__subtitle');
+  const again = document.getElementById('again');
+  const announcer = document.getElementById('announcer');
+
+  // ------------------------------------------------------------ state
+  const debug = { state: 'arriving', card: null };
+  window.__eldritch = debug;
+  let state = 'arriving';
+  const setState = (s) => {
+    state = s;
+    debug.state = s;
+  };
+  let drawn = null; // { mesh, card, material }
+  let revealedAt = 0;
+
+  const fontsReady = Promise.all([
+    document.fonts.load('64px "IM Fell English SC"'),
+    document.fonts.load('italic 500 64px "Cormorant Garamond"'),
+  ]).catch(() => {});
+
+  const playArrival = () => {
+    setState('arriving');
+    arrive(deck, { reduced }).call(() => {
+      setState('idle');
+      hint.classList.add('is-visible');
+      input.refresh();
+    });
+  };
+
+  const pickCard = () => {
+    const forced = params.get('card');
+    if (forced !== null && CARDS[Number(forced)]) return CARDS[Number(forced)];
+    return drawRandomCard();
+  };
+
+  const begin = async () => {
+    if (state !== 'idle') return;
+    setState('shuffling');
+    hint.classList.remove('is-visible');
+    canvas.classList.remove('is-hovering');
+
+    const card = pickCard();
+    debug.card = card.id;
+
+    const tl = gsap.timeline();
+    tl.add(shuffle(deck, { reduced }));
+
+    // prepare the face while the shuffle plays
+    await fontsReady;
+    const material = createFaceMaterial(card, renderer);
+    renderer.initTexture(material.map);
+
+    tl.call(() => {
+      setState('drawing');
+      const mesh = deck.order[Math.floor(deck.order.length / 2)];
+      setFace(mesh, material);
+      drawn = { mesh, card, material };
+      tl.add(
+        drawAndExit(deck, mesh, scene, REVEAL, { reduced }).call(() => {
+          setState('revealing');
+          reveal(mesh, lights, post, REVEAL, { reduced }).call(() => {
+            setState('done');
+            revealedAt = clock.elapsedTime;
+            showReading(card);
+          });
+        }),
+      );
+    });
+  };
+
+  const showReading = (card) => {
+    readingAngle.textContent = card.reading;
+    readingSubtitle.textContent = card.synthesis
+      ? `${card.synthesis} — ${card.subtitle ?? ''}`.replace(/ — $/, '')
+      : card.label.toLowerCase();
+    reading.classList.add('is-visible');
+    reading.setAttribute('aria-hidden', 'false');
+    announcer.textContent = `${card.label}: ${card.reading}${card.synthesis ? `, ${card.synthesis}` : ''}.`;
+    setTimeout(() => again.focus({ preventScroll: true }), 50);
+  };
+
+  again.addEventListener('click', () => {
+    if (state !== 'done' || !drawn) return;
+    setState('resetting');
+    reading.classList.remove('is-visible');
+    reading.setAttribute('aria-hidden', 'true');
+    const { mesh, material } = drawn;
+    dismiss(mesh, { reduced }).call(() => {
+      deck.float.attach(mesh);
+      setFace(mesh, shared.veiled);
+      material.map.dispose();
+      material.dispose();
+      deck.squareUp();
+      drawn = null;
+      canvas.focus({ preventScroll: true });
+      playArrival();
+    });
+  });
+
+  const input = createInput(canvas, camera, () => (state === 'idle' ? deck.cards : []), {
+    onActivate: begin,
+    onPointer: (ndc) => {
+      deck.tilt.set(THREE.MathUtils.clamp(ndc.x, -1, 1), THREE.MathUtils.clamp(ndc.y, -1, 1));
+    },
+  });
+
+  // ------------------------------------------------------------ loop
+  // `clock.elapsedTime` is the scene time. In ?step mode (headless capture)
+  // time only moves when window.__advance() is called.
+  const stepMode = params.has('step');
+  const clock = stepMode ? { elapsedTime: 0, getDelta: () => 0 } : new THREE.Clock();
+  const tick = (stepDt) => {
+    const dt = stepMode ? stepDt : Math.min(clock.getDelta(), 0.05);
+    const t = clock.elapsedTime;
+
+    deck.update(t, dt);
+    atmosphere.update(t);
+    lights.update(t);
+
+    // breathing camera
+    camera.position.set(
+      cameraBase.x + Math.sin(t * 0.21) * 0.12,
+      cameraBase.y + Math.sin(t * 0.17) * 0.08,
+      cameraBase.z,
+    );
+    camera.lookAt(0, 0.1, 0);
+
+    // the revealed card hovers gently
+    if (state === 'done' && drawn) {
+      const k = Math.min(1, (t - revealedAt) / 1.5);
+      drawn.mesh.position.y = REVEAL.position.y + Math.sin((t - revealedAt) * 0.9) * 0.06 * k;
+      drawn.mesh.rotation.y = Math.sin((t - revealedAt) * 0.5) * 0.08 * k;
+      drawn.mesh.rotation.x = Math.sin((t - revealedAt) * 0.7) * 0.04 * k;
+    }
+
+    if (!stepMode) post.render(t);
+  };
+
+  if (stepMode) {
+    gsap.ticker.remove(gsap.updateRoot);
+    window.__advance = (seconds, fps = 30) => {
+      const n = Math.max(1, Math.round(seconds * fps));
+      for (let i = 0; i < n; i++) {
+        clock.elapsedTime += 1 / fps;
+        gsap.updateRoot(clock.elapsedTime);
+        tick(1 / fps);
+      }
+      post.render(clock.elapsedTime);
+      return debug.state;
+    };
+    window.__activate = begin;
+    post.render(0);
+  } else {
+    renderer.setAnimationLoop(tick);
+  }
+
+  playArrival();
+}
