@@ -4,6 +4,7 @@
   --gold: #a8864a;
   --verdigris: #4fd1a5;
   --muted: rgba(217, 207, 184, 0.55);
+  color-scheme: dark;
 }
 
 * {
@@ -38,7 +39,7 @@ body {
 .hint {
   position: fixed;
   left: 50%;
-  bottom: max(6vh, 32px);
+  bottom: calc(max(6vh, 32px) + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   margin: 0;
   font-family: 'IM Fell English SC', 'Cormorant Garamond', serif;
@@ -70,7 +71,7 @@ body {
 .reading {
   position: fixed;
   left: 50%;
-  bottom: max(4vh, 20px);
+  bottom: calc(max(4vh, 20px) + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   width: min(90vw, 520px);
   text-align: center;
