@@ -16,6 +16,7 @@ import {
 import { CARDS, drawRandomCard } from './deck/cardData.js';
 import { arrive, shuffle, drawAndExit, reveal, dismiss } from './anim/timeline.js';
 import { createInput } from './input.js';
+import { loadArt } from './deck/textures/face.js';
 import { renderContactSheet } from './debug/contactSheet.js';
 
 const params = new URLSearchParams(location.search);
@@ -153,8 +154,8 @@ function start() {
     tl.add(shuffle(deck, { reduced }));
 
     // prepare the face while the shuffle plays
-    await fontsReady;
-    const material = createFaceMaterial(card, renderer);
+    const [art] = await Promise.all([loadArt(card), fontsReady]);
+    const material = createFaceMaterial(card, renderer, art);
 
     tl.call(() => {
       setState('drawing');

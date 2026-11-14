@@ -5,6 +5,7 @@
 
 import { suitGlyph, iconGlyph } from './glyphs.js';
 import { paintSleep } from './plates/sleep.js';
+import { paintPlate, coverImage } from './plates/engraving.js';
 import {
   TEX_W as W,
   TEX_H as H,
@@ -34,6 +35,23 @@ const FONT = '"IM Fell English SC", "Cormorant Garamond", Georgia, serif';
 
 // Illustrated fronts, keyed by card id. Cards without one fall back to the foil design.
 const PLATES = { 'A♣': paintSleep };
+
+// Painted artwork, keyed by card id, served from public/cards/.
+// Takes precedence over the hand-drawn plates when present.
+const ART = { 'A♣': 'ac-sleep.webp' };
+
+/** Load a card's painting, or resolve null if it has none or it fails. */
+export function loadArt(card) {
+  const file = ART[card.id];
+  if (!file) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = `${import.meta.env.BASE_URL}cards/${file}`;
+  });
+}
 
 /** Frame with a pocket notched out of each corner for the index. */
 function framePath(c, d = 0) {
@@ -272,7 +290,8 @@ function plaque(L, card, rng) {
 }
 
 /** Colour, roughness/metalness and emissive maps for one card's face. */
-export function paintFace(card) {
+export function paintFace(card, art = null) {
+  if (art) return paintPlate(card, (c) => coverImage(c, art));
   if (PLATES[card.id]) return PLATES[card.id](card);
   const L = createLayers(W, H);
   const rng = mulberry32(hashString(card.id));

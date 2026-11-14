@@ -289,3 +289,14 @@ export function paintPlate(card, scene) {
 
   return { color, orm, emissive };
 }
+
+/**
+ * Draw an image into the plate, scaled to cover it. `anchorY` picks which
+ * part survives a vertical crop: 0 keeps the top, 0.5 the middle.
+ */
+export function coverImage(c, img, P = PLATE, anchorY = 0.25) {
+  const s = Math.max(P.w / img.width, P.h / img.height);
+  const w = img.width * s;
+  const h = img.height * s;
+  c.drawImage(img, P.x + (P.w - w) / 2, P.y + (P.h - h) * anchorY, w, h);
+}
