@@ -56,31 +56,37 @@ export function createCardGeometry() {
   return g;
 }
 
-function toTexture(canvas, renderer) {
+function toTexture(canvas, renderer, srgb = true) {
   const t = new THREE.CanvasTexture(canvas);
-  t.colorSpace = THREE.SRGBColorSpace;
+  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   t.anisotropy = renderer.capabilities.getMaxAnisotropy();
   return t;
 }
 
-export function createSharedMaterials(renderer) {
-  const back = paintBack();
-  const backColor = toTexture(back.color, renderer);
-  const backEmissive = toTexture(back.emissive, renderer);
+/**
+ * Black stock with metallic foil. The art's `orm` map makes the foil a
+ * smooth metal and the stock a rough dielectric, so the foil catches the
+ * light as the card turns; a little emissive keeps it legible in the dark.
+ */
+function foilMaterial(art, renderer, emissiveIntensity) {
+  const orm = toTexture(art.orm, renderer, false);
+  return new THREE.MeshStandardMaterial({
+    map: toTexture(art.color, renderer),
+    emissiveMap: toTexture(art.emissive, renderer),
+    emissive: new THREE.Color('#ffffff'),
+    emissiveIntensity,
+    roughnessMap: orm,
+    metalnessMap: orm,
+    roughness: 1,
+    metalness: 1,
+  });
+}
 
+export function createSharedMaterials(renderer) {
   return {
-    back: new THREE.MeshStandardMaterial({
-      map: backColor,
-      emissiveMap: backEmissive,
-      emissive: new THREE.Color('#4fd1a5'),
-      emissiveIntensity: 0,
-      roughness: 0.5,
-      metalness: 0.2,
-    }),
-    veiled: new THREE.MeshStandardMaterial({
-      map: toTexture(paintVeiledFace(), renderer),
-      roughness: 0.9,
-    }),
+    // emissiveIntensity is animated from 0 to 1 as the deck arrives
+    back: foilMaterial(paintBack(), renderer, 0),
+    veiled: foilMaterial(paintVeiledFace(), renderer, 0.2),
     edge: new THREE.MeshStandardMaterial({
       color: new THREE.Color('#a8864a'),
       metalness: 0.9,
@@ -92,15 +98,16 @@ export function createSharedMaterials(renderer) {
 
 /** A unique, full-detail face material for the drawn card. */
 export function createFaceMaterial(card, renderer) {
-  const tex = toTexture(paintFace(card), renderer);
-  return new THREE.MeshStandardMaterial({
-    map: tex,
-    emissiveMap: tex,
-    emissive: new THREE.Color('#ffffff'),
-    emissiveIntensity: 0.1,
-    roughness: 0.85,
-    metalness: 0,
-  });
+  const material = foilMaterial(paintFace(card), renderer, 0.3);
+  for (const t of [material.map, material.emissiveMap, material.roughnessMap]) renderer.initTexture(t);
+  return material;
+}
+
+export function disposeFaceMaterial(material) {
+  material.map.dispose();
+  material.emissiveMap.dispose();
+  material.roughnessMap.dispose();
+  material.dispose();
 }
 
 export function createCardMesh(geometry, shared) {

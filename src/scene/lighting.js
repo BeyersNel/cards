@@ -6,7 +6,7 @@ export function createLighting(scene, renderer) {
   // faint neutral reflections so gilt edges read as metal
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.18;
+  scene.environmentIntensity = 0.4;
   pmrem.dispose();
 
   const ambient = new THREE.HemisphereLight('#3a5a56', '#0a0806', 0.5);
@@ -29,10 +29,16 @@ export function createLighting(scene, renderer) {
   flash.position.set(0, 0.3, 5);
   scene.add(flash);
 
+  // drifts in front of the revealed card (see main.js)
+  const glint = new THREE.PointLight('#fff0d2', 0, 16, 2);
+  scene.add(glint);
+
   return {
     key,
     candle,
     flash,
+    glint,
+    glintIntensity: 8,
     update(t) {
       const f =
         Math.sin(t * 7.3) * 0.5 +

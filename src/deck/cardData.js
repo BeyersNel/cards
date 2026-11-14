@@ -1,8 +1,10 @@
 // Meanings from cards.pdf:
 //   Suit  = Angle  — the existential force that shapes the exploration
 //   Rank  = Domain — the area of life that the angle acts through
-// A card reads as "angle × domain". `synthesis` / `subtitle` are optional
-// and can be filled in later (only the PDF's own example is set).
+// A card reads as "angle × domain = title". The titles, glosses and prose
+// live in readings.js.
+
+import { READINGS } from './readings.js';
 
 export const SUITS = [
   { key: 'clubs', symbol: '♣', name: 'Clubs', angle: 'death', red: false },
@@ -27,21 +29,19 @@ export const RANKS = [
   { key: 'K', name: 'King', domain: 'father creator', icon: 'crown', court: true },
 ];
 
-// Optional synthesis words, keyed "<rank><suit symbol>".
-const SYNTHESES = {
-  'A♣': { synthesis: 'sleep', subtitle: 'the way that the body prepares for death' },
-};
-
 export const CARDS = SUITS.flatMap((suit) =>
   RANKS.map((rank) => {
     const id = `${rank.key}${suit.symbol}`;
+    const [title, gloss, prose] = READINGS[suit.key][rank.key];
     return {
       id,
       suit,
       rank,
       label: `${rank.name} of ${suit.name}`,
       reading: `${suit.angle} × ${rank.domain}`,
-      ...(SYNTHESES[id] ?? {}),
+      title,
+      gloss,
+      prose,
     };
   }),
 );

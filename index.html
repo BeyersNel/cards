@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=IM+Fell+English+SC&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=IM+Fell+English+SC&family=Pirata+One&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/src/style.css" />
@@ -18,11 +18,13 @@
 
     <p id="hint" class="hint" aria-hidden="true">touch the deck</p>
 
-    <div id="reading" class="reading" aria-hidden="true">
-      <p class="reading__angle"></p>
-      <p class="reading__subtitle"></p>
+    <section id="reading" class="reading" aria-label="Your card" inert>
+      <h1 class="reading__title"></h1>
+      <p class="reading__meta"></p>
+      <p class="reading__gloss"></p>
+      <p class="reading__prose"></p>
       <button id="again" class="again" type="button">draw again</button>
-    </div>
+    </section>
 
     <p id="announcer" class="sr-only" aria-live="polite"></p>
 

@@ -1,8 +1,8 @@
 // Suit glyphs and the 13 domain icons from cards.pdf, drawn in a
-// -50..50 unit box. Each renders into a cached offscreen canvas so icons
-// can use cut-outs (destination-out) without touching the card beneath.
+// -50..50 unit box as white-on-transparent masks. Each renders into a cached
+// offscreen canvas so icons can use cut-outs (destination-out).
 
-import { makeCanvas, tentacle } from './ornament.js';
+import { makeCanvas } from './ornament.js';
 
 const circle = (c, x, y, r) => {
   c.moveTo(x + r, y);
@@ -383,48 +383,29 @@ const ICONS = {
 
 const cache = new Map();
 
-function render(key, px, color, draw) {
-  const id = `${key}|${px}|${color}`;
+function render(id, px, draw) {
   if (cache.has(id)) return cache.get(id);
   const cv = makeCanvas(px, px);
   const c = cv.getContext('2d');
   c.scale(px / 100, px / 100);
   c.translate(50, 50);
-  c.fillStyle = color;
-  c.strokeStyle = color;
+  c.fillStyle = '#fff';
+  c.strokeStyle = '#fff';
   draw(c);
   cache.set(id, cv);
   return cv;
 }
 
-/** Suit glyph; `tendrils` adds two curling feelers at the base. */
-export function suitCanvas(suitKey, px, color, { tendrils = false } = {}) {
-  return render(`suit-${suitKey}-${tendrils}`, px, color, (c) => {
-    if (tendrils) {
-      c.scale(0.82, 0.82);
-      for (const s of [-1, 1]) {
-        tentacle(c, {
-          x: s * 10,
-          y: 40,
-          angle: Math.PI / 2 + s * 1.1,
-          length: 46,
-          width: 7,
-          curl: -s * 3.2,
-          steps: 40,
-          fill: color,
-        });
-      }
-    }
+/** White-on-transparent suit glyph, for stamping onto a foil mask. */
+export function suitGlyph(suitKey, px = 256) {
+  return render(`suit-${suitKey}-${px}`, px, (c) => {
     c.beginPath();
     SUIT_PATHS[suitKey](c);
     c.fill();
   });
 }
 
-export function iconCanvas(iconKey, px, color) {
-  return render(`icon-${iconKey}`, px, color, ICONS[iconKey]);
-}
-
-export function drawCentered(ctx, canvas, x, y, size) {
-  ctx.drawImage(canvas, x - size / 2, y - size / 2, size, size);
+/** White-on-transparent domain icon. */
+export function iconGlyph(iconKey, px = 512) {
+  return render(`icon-${iconKey}-${px}`, px, ICONS[iconKey]);
 }

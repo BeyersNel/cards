@@ -2,6 +2,7 @@
   --void: #05070a;
   --bone: #d9cfb8;
   --gold: #a8864a;
+  --foil: #dcbd7a;
   --verdigris: #4fd1a5;
   --muted: rgba(217, 207, 184, 0.55);
   color-scheme: dark;
@@ -68,48 +69,98 @@ body {
   }
 }
 
+/* The reading: beside the card on wide screens, below it on tall ones.
+   main.js sets body[data-layout] and places the card to match. */
 .reading {
   position: fixed;
-  left: 50%;
-  bottom: calc(max(4vh, 20px) + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  width: min(90vw, 520px);
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 1.4s ease;
+  transition: opacity 1.6s ease, translate 1.6s ease;
+  font-size: clamp(15px, 1.35vw, 21px);
 }
 
 .reading.is-visible {
   opacity: 1;
   pointer-events: auto;
+  translate: 0 0;
 }
 
-.reading__angle {
+body[data-layout='side'] .reading {
+  left: 54%;
+  top: 50%;
+  width: min(40vw, 30em);
+  transform: translateY(-50%);
+  translate: 0 14px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+body[data-layout='below'] .reading {
+  left: 50%;
+  bottom: calc(max(2.5vh, 14px) + env(safe-area-inset-bottom, 0px));
+  width: min(100vw - 40px, 30em);
+  max-height: 40vh;
+  transform: translateX(-50%);
+  translate: 0 10px;
+  align-items: center;
+  text-align: center;
+  font-size: clamp(13px, 1.95vh, 18px);
+  gap: 0.45em;
+}
+
+.reading > * {
   margin: 0;
-  font-family: 'IM Fell English SC', serif;
-  font-size: clamp(16px, 2vw, 22px);
-  letter-spacing: 0.18em;
-  color: var(--bone);
 }
 
-.reading__subtitle {
-  margin: 0.3em 0 0;
-  font-style: italic;
-  font-size: clamp(14px, 1.6vw, 18px);
+.reading__title {
+  font-family: 'IM Fell English SC', 'Cormorant Garamond', serif;
+  font-weight: 400;
+  font-size: 2.9em;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--foil);
+  text-wrap: balance;
+}
+
+body[data-layout='below'] .reading__title {
+  font-size: 2.1em;
+}
+
+.reading__meta {
+  font-family: 'IM Fell English SC', serif;
+  font-size: 0.85em;
+  letter-spacing: 0.22em;
   color: var(--muted);
-  min-height: 1.2em;
+}
+
+.reading__gloss {
+  font-style: italic;
+  font-size: 1.12em;
+  color: var(--bone);
+  padding-top: 0.6em;
+  border-top: 1px solid rgba(168, 134, 74, 0.4);
+}
+
+.reading__prose {
+  font-size: 1.08em;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba(217, 207, 184, 0.86);
+  text-wrap: pretty;
 }
 
 .again {
-  margin-top: 1.1em;
-  padding: 0.5em 1.2em;
+  margin-top: 0.5em;
+  padding: 0.5em 0;
   background: none;
   border: none;
   border-bottom: 1px solid rgba(168, 134, 74, 0.35);
   color: var(--gold);
   font: inherit;
-  font-size: clamp(13px, 1.4vw, 16px);
+  font-size: 0.85em;
   letter-spacing: 0.35em;
   cursor: pointer;
   transition: color 0.4s ease, border-color 0.4s ease;
@@ -145,6 +196,11 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .reading {
+    transition: opacity 0.6s ease;
+    translate: 0 0 !important;
+  }
+
   .hint.is-visible {
     animation: none;
     opacity: 0.8;

@@ -5,7 +5,14 @@ import { createAtmosphere } from './scene/atmosphere.js';
 import { createLighting } from './scene/lighting.js';
 import { createPost } from './scene/post.js';
 import { Deck } from './deck/deck.js';
-import { createSharedMaterials, createFaceMaterial, setFace } from './deck/cardMesh.js';
+import {
+  createSharedMaterials,
+  createFaceMaterial,
+  disposeFaceMaterial,
+  setFace,
+  CARD_W,
+  CARD_H,
+} from './deck/cardMesh.js';
 import { CARDS, drawRandomCard } from './deck/cardData.js';
 import { arrive, shuffle, drawAndExit, reveal, dismiss } from './anim/timeline.js';
 import { createInput } from './input.js';
@@ -49,17 +56,32 @@ function start() {
   const deck = new Deck(shared);
   scene.add(deck.root);
 
-  const REVEAL = { position: { x: 0, y: 0.38, z: 3 }, scale: 1.12 };
+  // Where the drawn card comes to rest. Recomputed for the viewport:
+  // beside the reading on wide screens, above it on tall ones.
+  const REVEAL = { position: { x: 0, y: 0.3, z: 3 }, scale: 1.12 };
+  let drawn = null; // { mesh, card, material }
 
-  // fit camera distance so the revealed card (and the deck) fit any aspect
-  const fitCamera = () => {
+  const fitLayout = () => {
     const aspect = window.innerWidth / window.innerHeight;
     const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-    const needW = 3.3; // revealed card width + margin
-    const needH = 5.6; // revealed card height + room for the reading text
-    const dW = needW / (2 * tanHalf * aspect);
-    const dH = needH / (2 * tanHalf);
-    cameraBase.z = Math.max(12, REVEAL.position.z + Math.max(dW, dH));
+    const side = aspect >= 1.15;
+    document.body.dataset.layout = side ? 'side' : 'below';
+
+    // fw/fh: how much of the viewport the card may fill; cx/cy: where its centre sits
+    const spec = side ? { fw: 0.38, fh: 0.82, cx: 0.3, cy: 0.5 } : { fw: 0.84, fh: 0.5, cx: 0.5, cy: 0.3 };
+    const cardW = CARD_W * REVEAL.scale;
+    const cardH = CARD_H * REVEAL.scale;
+    const distance = Math.max(cardW / spec.fw / (2 * tanHalf * aspect), cardH / spec.fh / (2 * tanHalf));
+    const z = Math.min(5, cameraBase.z - distance);
+    const visibleH = 2 * tanHalf * (cameraBase.z - z);
+    REVEAL.position.x = (spec.cx - 0.5) * visibleH * aspect;
+    REVEAL.position.y = (0.5 - spec.cy) * visibleH + 0.1;
+    REVEAL.position.z = z;
+    if (drawn && state === 'done') {
+      drawn.mesh.position.set(REVEAL.position.x, REVEAL.position.y, z);
+      lights.key.target.position.copy(drawn.mesh.position);
+    }
+
     // shrink the shuffle swirl (~9.7 units wide) to fit narrow screens, allowing slight overflow
     const visibleW = 2 * tanHalf * cameraBase.z * aspect;
     deck.flowScale = Math.min(0.74, (visibleW * 1.2) / 9.7);
@@ -69,19 +91,20 @@ function start() {
     const w = window.innerWidth;
     const h = window.innerHeight;
     camera.aspect = w / h;
-    fitCamera();
+    fitLayout();
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
     post.setSize(w, h);
   };
   window.addEventListener('resize', onResize);
-  onResize();
 
   // ------------------------------------------------------------ ui
   const hint = document.getElementById('hint');
   const reading = document.getElementById('reading');
-  const readingAngle = reading.querySelector('.reading__angle');
-  const readingSubtitle = reading.querySelector('.reading__subtitle');
+  const readingTitle = reading.querySelector('.reading__title');
+  const readingMeta = reading.querySelector('.reading__meta');
+  const readingGloss = reading.querySelector('.reading__gloss');
+  const readingProse = reading.querySelector('.reading__prose');
   const again = document.getElementById('again');
   const announcer = document.getElementById('announcer');
 
@@ -93,11 +116,12 @@ function start() {
     state = s;
     debug.state = s;
   };
-  let drawn = null; // { mesh, card, material }
   let revealedAt = 0;
+  onResize();
 
   const fontsReady = Promise.all([
     document.fonts.load('64px "IM Fell English SC"'),
+    document.fonts.load('64px "Pirata One"'),
     document.fonts.load('italic 500 64px "Cormorant Garamond"'),
   ]).catch(() => {});
 
@@ -131,19 +155,23 @@ function start() {
     // prepare the face while the shuffle plays
     await fontsReady;
     const material = createFaceMaterial(card, renderer);
-    renderer.initTexture(material.map);
 
     tl.call(() => {
       setState('drawing');
       const mesh = deck.order[Math.floor(deck.order.length / 2)];
       setFace(mesh, material);
       drawn = { mesh, card, material };
+      // bring the light with the card
+      const { x, y, z } = REVEAL.position;
+      gsap.to(lights.key.target.position, { x, y, z, duration: 2, ease: 'sine.inOut' });
+      lights.flash.position.set(x, y + 0.3, z + 2.2);
       tl.add(
         drawAndExit(deck, mesh, scene, REVEAL, { reduced }).call(() => {
           setState('revealing');
           reveal(mesh, lights, post, REVEAL, { reduced }).call(() => {
             setState('done');
             revealedAt = clock.elapsedTime;
+            gsap.to(lights.glint, { intensity: lights.glintIntensity, duration: 2 });
             showReading(card);
           });
         }),
@@ -152,30 +180,30 @@ function start() {
   };
 
   const showReading = (card) => {
-    readingAngle.textContent = card.reading;
-    readingSubtitle.textContent = card.synthesis
-      ? `${card.synthesis} — ${card.subtitle ?? ''}`.replace(/ — $/, '')
-      : card.label.toLowerCase();
+    readingTitle.textContent = card.title;
+    readingMeta.textContent = `${card.label} · ${card.reading}`;
+    readingGloss.textContent = card.gloss;
+    readingProse.textContent = card.prose;
+    reading.inert = false;
     reading.classList.add('is-visible');
-    reading.setAttribute('aria-hidden', 'false');
-    announcer.textContent = `${card.label}: ${card.reading}${card.synthesis ? `, ${card.synthesis}` : ''}.`;
-    setTimeout(() => again.focus({ preventScroll: true }), 50);
+    announcer.textContent = `${card.label}. ${card.reading}: ${card.title}, ${card.gloss}. ${card.prose}`;
   };
 
   again.addEventListener('click', () => {
     if (state !== 'done' || !drawn) return;
     setState('resetting');
     reading.classList.remove('is-visible');
-    reading.setAttribute('aria-hidden', 'true');
+    reading.inert = true;
+    canvas.focus({ preventScroll: true });
+    gsap.to(lights.glint, { intensity: 0, duration: 0.8 });
+    gsap.to(lights.key.target.position, { x: 0, y: 0, z: 0, duration: 2, ease: 'sine.inOut' });
     const { mesh, material } = drawn;
     dismiss(mesh, { reduced }).call(() => {
       deck.float.attach(mesh);
       setFace(mesh, shared.veiled);
-      material.map.dispose();
-      material.dispose();
+      disposeFaceMaterial(material);
       deck.squareUp();
       drawn = null;
-      canvas.focus({ preventScroll: true });
       playArrival();
     });
   });
@@ -214,6 +242,12 @@ function start() {
       drawn.mesh.position.y = REVEAL.position.y + Math.sin((t - revealedAt) * 0.9) * 0.06 * k;
       drawn.mesh.rotation.y = Math.sin((t - revealedAt) * 0.5) * 0.08 * k;
       drawn.mesh.rotation.x = Math.sin((t - revealedAt) * 0.7) * 0.04 * k;
+      // a small light drifts in front of the card so the foil keeps catching it
+      lights.glint.position.set(
+        drawn.mesh.position.x - 0.9 + Math.sin(t * 0.45) * 2.4,
+        drawn.mesh.position.y + Math.sin(t * 0.31 + 1) * 2.6,
+        drawn.mesh.position.z + 5,
+      );
     }
 
     if (!stepMode) post.render(t);

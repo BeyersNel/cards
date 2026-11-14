@@ -1,11 +1,13 @@
 // ?sheet — paints every face plus the back into one grid, for checking the art.
 import { CARDS } from '../deck/cardData.js';
 import { paintFace } from '../deck/textures/face.js';
-import { paintBack, TEX_W, TEX_H } from '../deck/textures/back.js';
+import { paintBack } from '../deck/textures/back.js';
+import { TEX_W, TEX_H } from '../deck/textures/ornament.js';
 
 export async function renderContactSheet() {
   await Promise.all([
     document.fonts.load('64px "IM Fell English SC"'),
+    document.fonts.load('64px "Pirata One"'),
     document.fonts.load('italic 500 64px "Cormorant Garamond"'),
   ]).catch(() => {});
 
@@ -27,7 +29,7 @@ export async function renderContactSheet() {
   ctx.fillStyle = '#05070a';
   ctx.fillRect(0, 0, sheet.width, sheet.height);
 
-  const items = [{ canvas: paintBack().color }, ...CARDS.map((c) => ({ canvas: paintFace(c) }))];
+  const items = [paintBack(), ...CARDS.map((c) => paintFace(c))].map((art) => ({ canvas: art.color }));
   items.forEach((it, i) => {
     const x = gap + (i % cols) * (cw + gap);
     const y = gap + Math.floor(i / cols) * (ch + gap);
