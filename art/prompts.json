@@ -69,7 +69,7 @@
     "regenerated-2026-11-14": "Critical review: 18 cards regenerated for clutter, floating emblems/lettering, unclear focal points or symbols that did not read.",
     "spades-2": "The handprint-on-glass version came out with a six-fingered hand (and an image edit could not fix it); the handprint and glove were dropped.",
     "clubs-5": "The generator kept adding a second blade to the scythe. The installed image is the regenerated scene (level horizon) with its extra top blade removed in an edit (gemini-3-pro-image).",
-    "clubs-7": "Previous version read as someone opening a lectern in daylight; the murder and the buried secret were not legible."
+    "clubs-7": "Regenerated as a cross-section (guilty man above, buried secret below); the installed image then had one edit (gemini-3-pro-image) so the hammer strikes a nail instead of a candle."
   },
   "back": {
     "prompt": "Ornate playing card back design, a single full-bleed design that fills the entire canvas edge to edge, perfectly symmetrical left to right and top to bottom like a real playing card back. No text, no letters, no numbers. Fine antique line engraving in luminous metallic gold on a deep matte black background, like gold foil stamped onto black card stock. Esoteric tarot symbolism in the tradition of the Rider-Waite and Thoth decks and old alchemical emblem books: at the centre a radiant sun with an all-seeing eye, encircled by an ouroboros serpent and a ring of thirteen moon phases; four corner medallions holding a club, a spade, a heart and a diamond; garlands of laurel and poppies, crossed keys, small hourglasses, stars and fine sunrays; a double border of delicate filigree scrollwork. Intricate, balanced, elegant and mysterious, museum-quality engraving.",
