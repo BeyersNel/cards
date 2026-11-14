@@ -17,6 +17,9 @@ import {
   raggedMoon,
   elderMark,
   stamp,
+  embossNormal,
+  tintCanvas,
+  makeCanvas,
 } from './ornament.js';
 
 const TAU = Math.PI * 2;
@@ -285,4 +288,53 @@ export function paintBack() {
   distress(L.red, W, H, rng, 0.4);
 
   return composeCard(L, { foilGlow: 0.22 });
+}
+
+/**
+ * The card back from an engraved gold-on-black artwork. Bright, warm pixels
+ * are read as gold foil: they become smooth metal, raised (normal map) and
+ * faintly self-lit so the gold glows once the deck wakes.
+ */
+export function paintBackFromImage(img) {
+  const color = makeCanvas(W, H);
+  const c = color.getContext('2d');
+  c.drawImage(img, 0, 0, W, H); // the 3:4 art is stretched a few percent to the card's 5:7
+
+  const src = c.getImageData(0, 0, W, H);
+  const d = src.data;
+  const maskCv = makeCanvas(W, H);
+  const mc = maskCv.getContext('2d');
+  const mask = mc.createImageData(W, H);
+  const m = mask.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i];
+    const g = d[i + 1];
+    const b = d[i + 2];
+    const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+    const warm = r - b > 18 ? 1 : 0.35;
+    const k = Math.min(1, Math.max(0, (lum - 45) / 110)) * warm;
+    m[i] = m[i + 1] = m[i + 2] = 255;
+    m[i + 3] = k * 255;
+  }
+  mc.putImageData(mask, 0, 0);
+
+  const orm = makeCanvas(W, H);
+  const o = orm.getContext('2d');
+  o.fillStyle = 'rgb(0, 215, 0)'; // black stock: rough, not metal
+  o.fillRect(0, 0, W, H);
+  o.drawImage(tintCanvas(maskCv, 'rgb(0, 72, 245)'), 0, 0); // gold: smooth metal
+
+  const emissive = makeCanvas(W, H);
+  const e = emissive.getContext('2d');
+  e.fillStyle = '#000';
+  e.fillRect(0, 0, W, H);
+  const lit = makeCanvas(W, H);
+  const l = lit.getContext('2d');
+  l.drawImage(color, 0, 0);
+  l.globalCompositeOperation = 'destination-in';
+  l.drawImage(maskCv, 0, 0);
+  e.globalAlpha = 0.55;
+  e.drawImage(lit, 0, 0);
+
+  return { color, orm, emissive, normal: embossNormal(maskCv, { blur: 1.6, strength: 2.2 }) };
 }

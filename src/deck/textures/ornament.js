@@ -472,3 +472,58 @@ export function stamp(c, glyph, x, y, size, rotation = 0) {
   c.drawImage(glyph, -size / 2, -size / 2, size, size);
   c.restore();
 }
+
+// ------------------------------------------------------------ embossing
+
+/**
+ * Tangent-space normal map that makes the opaque parts of `mask` read as
+ * raised foil. The mask's alpha is blurred into a height field and its
+ * slope becomes the normal; flat areas come out as (128, 128, 255).
+ * Green follows the texture's +V (up), matching CanvasTexture's flipY.
+ */
+export function embossNormal(mask, { blur = 2.2, strength = 2.6 } = {}) {
+  const w = mask.width;
+  const h = mask.height;
+  const hc = makeCanvas(w, h);
+  const c = hc.getContext('2d');
+  c.filter = `blur(${blur}px)`;
+  c.drawImage(mask, 0, 0);
+  const src = c.getImageData(0, 0, w, h).data;
+  const height = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) height[i] = src[i * 4 + 3] / 255;
+
+  const out = makeCanvas(w, h);
+  const o = out.getContext('2d');
+  const img = o.createImageData(w, h);
+  const d = img.data;
+  const at = (x, y) => height[Math.min(h - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx =
+        at(x + 1, y - 1) + 2 * at(x + 1, y) + at(x + 1, y + 1) - at(x - 1, y - 1) - 2 * at(x - 1, y) - at(x - 1, y + 1);
+      const dy =
+        at(x - 1, y + 1) + 2 * at(x, y + 1) + at(x + 1, y + 1) - at(x - 1, y - 1) - 2 * at(x, y - 1) - at(x + 1, y - 1);
+      let nx = -dx * strength;
+      let ny = dy * strength; // image y runs down, texture V runs up
+      const len = Math.hypot(nx, ny, 1);
+      const i = (y * w + x) * 4;
+      d[i] = ((nx / len) * 0.5 + 0.5) * 255;
+      d[i + 1] = ((ny / len) * 0.5 + 0.5) * 255;
+      d[i + 2] = ((1 / len) * 0.5 + 0.5) * 255;
+      d[i + 3] = 255;
+    }
+  }
+  o.putImageData(img, 0, 0);
+  return out;
+}
+
+/** Copy of `source` with every opaque pixel painted `style` (a colour or gradient). */
+export function tintCanvas(source, style) {
+  const cv = makeCanvas(source.width, source.height);
+  const c = cv.getContext('2d');
+  c.drawImage(source, 0, 0);
+  c.globalCompositeOperation = 'source-in';
+  c.fillStyle = style;
+  c.fillRect(0, 0, cv.width, cv.height);
+  return cv;
+}

@@ -2,7 +2,7 @@
 // an inked, hand-hatched picture in a limited palette, framed on bone
 // stock with a title band beneath, in the manner of an engraved tarot.
 
-import { TEX_W as W, TEX_H as H, makeCanvas, mulberry32, curlPath } from '../ornament.js';
+import { TEX_W as W, TEX_H as H, makeCanvas, mulberry32, curlPath, embossNormal, tintCanvas } from '../ornament.js';
 import { suitGlyph } from '../glyphs.js';
 
 export const INK = '#0d1015';
@@ -173,28 +173,34 @@ function paper(c) {
   }
 }
 
-function indexTab(c, card, flip) {
+// Silver foil: everything stamped on the `s` context (white on transparent)
+// becomes raised, reflective silver on the finished card.
+
+function indexTab(c, s, card, flip) {
   const ink = card.suit.red ? '#7a1420' : INK;
-  c.save();
-  if (flip) {
-    c.translate(W, PLATE.y * 2 + PLATE.h);
-    c.rotate(Math.PI);
+  for (const g of [c, s]) {
+    g.save();
+    if (flip) {
+      g.translate(W, PLATE.y * 2 + PLATE.h);
+      g.rotate(Math.PI);
+    }
   }
   const x = PLATE.x;
   const y = PLATE.y;
-  shape(
-    c,
-    (c) => {
-      c.beginPath();
-      c.moveTo(x, y);
-      c.lineTo(x + 104, y);
-      c.lineTo(x + 104, y + 150);
-      c.lineTo(x + 52, y + 178);
-      c.lineTo(x, y + 150);
-      c.closePath();
-    },
-    { fill: BONE, lw: 4 },
-  );
+  const tab = (g) => {
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + 104, y);
+    g.lineTo(x + 104, y + 150);
+    g.lineTo(x + 52, y + 178);
+    g.lineTo(x, y + 150);
+    g.closePath();
+  };
+  shape(c, tab, { fill: BONE, lw: 0 });
+  s.lineJoin = 'miter';
+  s.lineWidth = 6;
+  tab(s);
+  s.stroke();
   c.fillStyle = ink;
   c.textAlign = 'center';
   c.textBaseline = 'alphabetic';
@@ -202,45 +208,99 @@ function indexTab(c, card, flip) {
   c.font = `400 ${label.length > 1 ? 66 : 84}px ${TEXT_FONT}`;
   c.fillText(label, x + 52, y + 78);
   c.drawImage(tintGlyph(suitGlyph(card.suit.key), ink), x + 52 - 26, y + 90, 52, 52);
-  c.restore();
+  for (const g of [c, s]) g.restore();
 }
 
-function frame(c, card) {
-  // plate border
-  c.strokeStyle = INK;
-  c.lineJoin = 'miter';
-  c.lineWidth = 5;
-  c.strokeRect(PLATE.x, PLATE.y, PLATE.w, PLATE.h);
-  indexTab(c, card, false);
-  indexTab(c, card, true);
+/** A small foliate ornament: a lozenge flanked by two curling leaves. */
+function fleuron(s, x, y, size, rot = 0) {
+  s.save();
+  s.translate(x, y);
+  s.rotate(rot);
+  s.scale(size / 40, size / 40);
+  s.beginPath();
+  s.moveTo(0, -12);
+  s.lineTo(8, 0);
+  s.lineTo(0, 12);
+  s.lineTo(-8, 0);
+  s.closePath();
+  s.fill();
+  s.lineWidth = 3.2;
+  s.lineCap = 'round';
+  for (const side of [-1, 1]) {
+    s.beginPath();
+    s.moveTo(side * 10, 0);
+    s.bezierCurveTo(side * 22, -2, side * 30, -12, side * 26, -18);
+    s.bezierCurveTo(side * 22, -22, side * 16, -16, side * 20, -12);
+    s.moveTo(side * 10, 0);
+    s.bezierCurveTo(side * 22, 2, side * 30, 12, side * 26, 18);
+    s.bezierCurveTo(side * 22, 22, side * 16, 16, side * 20, 12);
+    s.stroke();
+  }
+  s.restore();
+}
 
-  // card border
-  c.lineWidth = 2;
-  c.beginPath();
-  c.roundRect(30, 30, W - 60, H - 60, 40);
-  c.stroke();
+function frame(c, s, card) {
+  s.strokeStyle = '#fff';
+  s.fillStyle = '#fff';
+  s.lineJoin = 'miter';
+
+  // card edge and a fine inner rule
+  s.lineWidth = 5;
+  s.beginPath();
+  s.roundRect(28, 28, W - 56, H - 56, 42);
+  s.stroke();
+  s.lineWidth = 1.6;
+  s.beginPath();
+  s.roundRect(42, 42, W - 84, H - 84, 30);
+  s.stroke();
+
+  // plate border
+  s.lineWidth = 7;
+  s.strokeRect(PLATE.x, PLATE.y, PLATE.w, PLATE.h);
+  indexTab(c, s, card, false);
+  indexTab(c, s, card, true);
 
   // title band
-  c.lineWidth = 5;
-  c.strokeRect(BAND.x, BAND.y, BAND.w, BAND.h);
-  c.lineWidth = 1.5;
-  c.strokeRect(BAND.x + 9, BAND.y + 9, BAND.w - 18, BAND.h - 18);
+  s.lineWidth = 7;
+  s.strokeRect(BAND.x, BAND.y, BAND.w, BAND.h);
+  s.lineWidth = 2;
+  s.strokeRect(BAND.x + 11, BAND.y + 11, BAND.w - 22, BAND.h - 22);
+  const midY = BAND.y + BAND.h / 2;
+  fleuron(s, BAND.x + 70, midY, 52);
+  fleuron(s, BAND.x + BAND.w - 70, midY, 52);
+  // studs where the band meets the plate, and at the card's four corners
+  for (const [x, y, r] of [
+    [PLATE.x, BAND.y - 10, 7],
+    [PLATE.x + PLATE.w, BAND.y - 10, 7],
+    [50, 50, 6],
+    [W - 50, 50, 6],
+    [50, H - 50, 6],
+    [W - 50, H - 50, 6],
+  ]) {
+    s.beginPath();
+    s.moveTo(x, y - r * 1.5);
+    s.lineTo(x + r, y);
+    s.lineTo(x, y + r * 1.5);
+    s.lineTo(x - r, y);
+    s.closePath();
+    s.fill();
+  }
 
   c.fillStyle = INK;
   c.textAlign = 'center';
   c.textBaseline = 'alphabetic';
-  let size = 108;
+  let size = 104;
   c.font = `400 ${size}px ${TITLE_FONT}`;
-  while (c.measureText(card.title).width > BAND.w - 120 && size > 40) {
+  while (c.measureText(card.title).width > BAND.w - 230 && size > 40) {
     size -= 4;
     c.font = `400 ${size}px ${TITLE_FONT}`;
   }
-  c.fillText(card.title, W / 2, BAND.y + 98);
+  c.fillText(card.title, W / 2, BAND.y + 96);
 
   c.fillStyle = card.suit.red ? '#7a1420' : '#3b3020';
   if ('letterSpacing' in c) c.letterSpacing = '5px';
   c.font = `400 30px ${TEXT_FONT}`;
-  c.fillText(card.reading, W / 2 + 2, BAND.y + 138);
+  c.fillText(card.reading, W / 2 + 2, BAND.y + 136);
   if ('letterSpacing' in c) c.letterSpacing = '0px';
 }
 
@@ -265,6 +325,8 @@ function grain(c) {
 export function paintPlate(card, scene) {
   const color = makeCanvas(W, H);
   const c = color.getContext('2d');
+  const silver = makeCanvas(W, H);
+  const s = silver.getContext('2d');
   paper(c);
   c.save();
   c.beginPath();
@@ -272,22 +334,32 @@ export function paintPlate(card, scene) {
   c.clip();
   scene(c, PLATE);
   c.restore();
-  frame(c, card);
+  frame(c, s, card);
   grain(c);
+
+  // stamp the silver: a soft shadow below, then the foil itself
+  c.save();
+  c.filter = 'blur(1.5px)';
+  c.globalAlpha = 0.55;
+  c.drawImage(tintCanvas(silver, '#2a2318'), 2, 3);
+  c.restore();
+  const foil = c.createLinearGradient(0, 0, W, H);
+  ['#8d939a', '#e9edf0', '#a7adb3', '#f4f6f7', '#8f959b', '#d7dbdf'].forEach((col, i, a) =>
+    foil.addColorStop(i / (a.length - 1), col),
+  );
+  c.drawImage(tintCanvas(silver, foil), 0, 0);
 
   const orm = makeCanvas(W, H);
   let o = orm.getContext('2d');
-  o.fillStyle = 'rgb(0, 245, 0)'; // matte paper: very rough, not metal
+  o.fillStyle = 'rgb(0, 245, 0)'; // paper: very rough, not metal
   o.fillRect(0, 0, W, H);
+  o.drawImage(tintCanvas(silver, 'rgb(0, 60, 245)'), 0, 0); // silver: smooth metal
 
   const emissive = makeCanvas(W, H);
   o = emissive.getContext('2d');
-  o.fillStyle = '#000';
-  o.fillRect(0, 0, W, H);
-  o.globalAlpha = 1;
   o.drawImage(color, 0, 0);
 
-  return { color, orm, emissive };
+  return { color, orm, emissive, normal: embossNormal(silver) };
 }
 
 /**

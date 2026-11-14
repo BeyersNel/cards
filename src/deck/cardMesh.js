@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { paintBack } from './textures/back.js';
+import { paintBack, paintBackFromImage } from './textures/back.js';
 import { paintFace, paintVeiledFace } from './textures/face.js';
 
 export const CARD_W = 2.5;
@@ -79,13 +79,18 @@ function foilMaterial(art, renderer, emissiveIntensity) {
     metalnessMap: orm,
     roughness: 1,
     metalness: 1,
+    // raised foil: the normal map makes embossed lines catch the light
+    ...(art.normal
+      ? { normalMap: toTexture(art.normal, renderer, false), normalScale: new THREE.Vector2(1, 1) }
+      : {}),
   });
 }
 
-export function createSharedMaterials(renderer) {
+/** `backImage`: the engraved back artwork; without it the procedural back is used. */
+export function createSharedMaterials(renderer, backImage = null) {
   return {
     // emissiveIntensity is animated from 0 to 1 as the deck arrives
-    back: foilMaterial(paintBack(), renderer, 0),
+    back: foilMaterial(backImage ? paintBackFromImage(backImage) : paintBack(), renderer, 0),
     veiled: foilMaterial(paintVeiledFace(), renderer, 0.2),
     edge: new THREE.MeshStandardMaterial({
       color: new THREE.Color('#a8864a'),
@@ -99,7 +104,9 @@ export function createSharedMaterials(renderer) {
 /** A unique, full-detail face material for the drawn card. */
 export function createFaceMaterial(card, renderer, art = null) {
   const material = foilMaterial(paintFace(card, art), renderer, 0.08);
-  for (const t of [material.map, material.emissiveMap, material.roughnessMap]) renderer.initTexture(t);
+  for (const t of [material.map, material.emissiveMap, material.roughnessMap, material.normalMap]) {
+    if (t) renderer.initTexture(t);
+  }
   return material;
 }
 
@@ -107,6 +114,7 @@ export function disposeFaceMaterial(material) {
   material.map.dispose();
   material.emissiveMap.dispose();
   material.roughnessMap.dispose();
+  material.normalMap?.dispose();
   material.dispose();
 }
 

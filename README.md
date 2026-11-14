@@ -37,7 +37,8 @@ npm run dev
 - `src/deck/readings.js`: the title, gloss and tarot passage for every card.
 - `src/deck/cardData.js`: suits, ranks and the 52 cards built from them.
 - `public/cards/<suit>-<rank>.webp`: the painted fronts. `src/deck/textures/face.js` loads the drawn card's painting and frames it (index tabs, title band) via `textures/plates/engraving.js`.
-- `src/deck/textures/back.js`: the gold-foil back, drawn in code (`ornament.js` holds the foil pipeline).
+- `public/cards/back.webp` + `src/deck/textures/back.js`: the engraved back. Its gold lines become raised, glowing foil in code (the fully procedural back remains as a fallback).
+- `src/deck/textures/ornament.js`: foil helpers, including `embossNormal`, which turns foil artwork into a normal map so silver (front) and gold (back) read as embossed.
 - `src/anim/timeline.js`: GSAP timelines for arrive, shuffle, draw, exit, reveal and dismiss.
 - `src/scene/`: fog, haze, motes, the occult floor circle, lighting, bloom/grain post.
 
@@ -50,4 +51,4 @@ python3 -I tools/prompt.py hearts-K    # print the full prompt for one card
 python3 -I tools/crop-art.py in.png public/cards/hearts-K.webp   # trim and save a result
 ```
 
-A card without a painting falls back to the gold-foil front.
+The back's brief is under `back` in the same file. A card without a painting falls back to the gold-foil front.

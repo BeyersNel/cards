@@ -27,7 +27,7 @@ if (params.has('sheet')) {
   start();
 }
 
-function start() {
+async function start() {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const narrow = Math.min(window.innerWidth, window.innerHeight) < 600;
   const lite = params.has('lite') || narrow || (navigator.hardwareConcurrency ?? 8) <= 4;
@@ -53,7 +53,13 @@ function start() {
   const post = createPost(renderer, scene, camera, { lite, noBloom });
 
   // ------------------------------------------------------------ deck
-  const shared = createSharedMaterials(renderer);
+  const backImage = await new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null); // fall back to the procedural back
+    img.src = `${import.meta.env.BASE_URL}cards/back.webp`;
+  });
+  const shared = createSharedMaterials(renderer, backImage);
   const deck = new Deck(shared);
   scene.add(deck.root);
 
