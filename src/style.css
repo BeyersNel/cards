@@ -44,7 +44,7 @@ body {
   transform: translateX(-50%);
   margin: 0;
   font-family: 'IM Fell English SC', 'Cormorant Garamond', serif;
-  font-size: clamp(14px, 1.6vw, 18px);
+  font-size: clamp(15px, 1.7vw, 20px);
   letter-spacing: 0.4em;
   text-transform: lowercase;
   color: var(--muted);
@@ -79,7 +79,7 @@ body {
   opacity: 0;
   pointer-events: none;
   transition: opacity 1.6s ease, translate 1.6s ease;
-  font-size: clamp(15px, 1.35vw, 21px);
+  font-size: clamp(17px, 1.6vw, 27px);
 }
 
 .reading.is-visible {
@@ -89,9 +89,9 @@ body {
 }
 
 body[data-layout='side'] .reading {
-  left: 54%;
+  left: 52%;
   top: 50%;
-  width: min(40vw, 30em);
+  width: min(43vw, 30em);
   transform: translateY(-50%);
   translate: 0 14px;
   align-items: flex-start;
@@ -131,7 +131,7 @@ body[data-layout='below'] .reading__title {
 
 .reading__meta {
   font-family: 'IM Fell English SC', serif;
-  font-size: 0.85em;
+  font-size: 0.9em;
   letter-spacing: 0.22em;
   color: var(--muted);
 }
@@ -160,7 +160,7 @@ body[data-layout='below'] .reading__title {
   border-bottom: 1px solid rgba(168, 134, 74, 0.35);
   color: var(--gold);
   font: inherit;
-  font-size: 0.85em;
+  font-size: 0.9em;
   letter-spacing: 0.35em;
   cursor: pointer;
   transition: color 0.4s ease, border-color 0.4s ease;
