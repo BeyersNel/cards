@@ -20,6 +20,7 @@ import {
   embossNormal,
   tintCanvas,
   makeCanvas,
+  thicknessMask,
 } from './ornament.js';
 
 const TAU = Math.PI * 2;
@@ -318,11 +319,15 @@ export function paintBackFromImage(img) {
   }
   mc.putImageData(mask, 0, 0);
 
+  // Fine engraved lines are satin gold; broad patches (the moons, the eye,
+  // the suit medallions) are polished and are the only parts that glow.
+  const thick = thicknessMask(maskCv, { radius: 3, lo: 0.6, hi: 0.9 });
   const orm = makeCanvas(W, H);
   const o = orm.getContext('2d');
   o.fillStyle = 'rgb(0, 215, 0)'; // black stock: rough, not metal
   o.fillRect(0, 0, W, H);
-  o.drawImage(tintCanvas(maskCv, 'rgb(0, 72, 245)'), 0, 0); // gold: smooth metal
+  o.drawImage(tintCanvas(maskCv, 'rgb(0, 140, 190)'), 0, 0); // satin gold
+  o.drawImage(tintCanvas(thick, 'rgb(0, 84, 245)'), 0, 0); // polished gold
 
   const emissive = makeCanvas(W, H);
   const e = emissive.getContext('2d');
@@ -332,9 +337,9 @@ export function paintBackFromImage(img) {
   const l = lit.getContext('2d');
   l.drawImage(color, 0, 0);
   l.globalCompositeOperation = 'destination-in';
-  l.drawImage(maskCv, 0, 0);
-  e.globalAlpha = 0.55;
+  l.drawImage(thick, 0, 0);
+  e.globalAlpha = 0.8;
   e.drawImage(lit, 0, 0);
 
-  return { color, orm, emissive, normal: embossNormal(maskCv, { blur: 1.6, strength: 2.2 }) };
+  return { color, orm, emissive, normal: embossNormal(maskCv, { blur: 2.4, strength: 1.6 }) };
 }

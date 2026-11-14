@@ -2,7 +2,16 @@
 // an inked, hand-hatched picture in a limited palette, framed on bone
 // stock with a title band beneath, in the manner of an engraved tarot.
 
-import { TEX_W as W, TEX_H as H, makeCanvas, mulberry32, curlPath, embossNormal, tintCanvas } from '../ornament.js';
+import {
+  TEX_W as W,
+  TEX_H as H,
+  makeCanvas,
+  mulberry32,
+  curlPath,
+  embossNormal,
+  tintCanvas,
+  thicknessMask,
+} from '../ornament.js';
 import { suitGlyph } from '../glyphs.js';
 
 export const INK = '#0d1015';
@@ -349,17 +358,22 @@ export function paintPlate(card, scene) {
   );
   c.drawImage(tintCanvas(silver, foil), 0, 0);
 
+  // Thin silver (the rules and borders) is satin: rough and only half
+  // metallic, so a point of light spreads into a soft sheen instead of
+  // beading along the line. Broad silver (the fleurons, studs) is polished.
+  const thick = thicknessMask(silver);
   const orm = makeCanvas(W, H);
   let o = orm.getContext('2d');
   o.fillStyle = 'rgb(0, 245, 0)'; // paper: very rough, not metal
   o.fillRect(0, 0, W, H);
-  o.drawImage(tintCanvas(silver, 'rgb(0, 60, 245)'), 0, 0); // silver: smooth metal
+  o.drawImage(tintCanvas(silver, 'rgb(0, 150, 150)'), 0, 0); // satin silver
+  o.drawImage(tintCanvas(thick, 'rgb(0, 92, 240)'), 0, 0); // polished silver
 
   const emissive = makeCanvas(W, H);
   o = emissive.getContext('2d');
   o.drawImage(color, 0, 0);
 
-  return { color, orm, emissive, normal: embossNormal(silver) };
+  return { color, orm, emissive, normal: embossNormal(silver, { blur: 3.2, strength: 1.5 }) };
 }
 
 /**

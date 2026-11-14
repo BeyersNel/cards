@@ -11,7 +11,7 @@ const GrainVignetteShader = {
     uTime: { value: 0 },
     uGrain: { value: 0.05 },
     uVignette: { value: 1.15 },
-    uAberration: { value: 0.0016 },
+    uAberration: { value: 0.0006 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;

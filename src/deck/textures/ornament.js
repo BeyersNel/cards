@@ -527,3 +527,31 @@ export function tintCanvas(source, style) {
   c.fillRect(0, 0, cv.width, cv.height);
   return cv;
 }
+
+/**
+ * How "thick" each part of a foil mask is, as a 0–1 alpha mask. A thin
+ * line blurs away to a low value and drops out; broad patches survive.
+ * Thick foil gets the polished, glowing finish; thin lines stay satin, so
+ * they never break up into sparkling dots.
+ */
+export function thicknessMask(mask, { radius = 4, lo = 0.72, hi = 0.93 } = {}) {
+  const w = mask.width;
+  const h = mask.height;
+  const blur = makeCanvas(w, h);
+  const b = blur.getContext('2d');
+  b.filter = `blur(${radius}px)`;
+  b.drawImage(mask, 0, 0);
+  const bd = b.getImageData(0, 0, w, h).data;
+  const md = mask.getContext('2d').getImageData(0, 0, w, h).data;
+  const out = makeCanvas(w, h);
+  const o = out.getContext('2d');
+  const img = o.createImageData(w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const t = Math.min(1, Math.max(0, (bd[i + 3] / 255 - lo) / (hi - lo)));
+    d[i] = d[i + 1] = d[i + 2] = 255;
+    d[i + 3] = t * t * (3 - 2 * t) * md[i + 3];
+  }
+  o.putImageData(img, 0, 0);
+  return out;
+}

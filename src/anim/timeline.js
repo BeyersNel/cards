@@ -165,7 +165,7 @@ export function reveal(mesh, lights, post, revealPose, { reduced = false } = {})
     tl.to(mesh.position, { z: `+=${0.6}`, duration: d / 2, ease: 'sine.out', yoyo: true, repeat: 1 }, 0);
   }
   tl.to(mesh.scale, { x: revealPose.scale, y: revealPose.scale, z: revealPose.scale, duration: d, ease: 'power2.out' }, 0);
-  tl.to(lights.flash, { intensity: 40, duration: d * 0.45, ease: 'power2.in' }, 0);
+  tl.to(lights.flash, { intensity: 16, duration: d * 0.45, ease: 'power2.in' }, 0);
   tl.to(lights.flash, { intensity: 0, duration: 1.4, ease: 'power2.out' }, d * 0.45);
   tl.to(post.bloom, { strength: post.baseBloom * 2.2, duration: d * 0.45, ease: 'power2.in' }, 0);
   tl.to(post.bloom, { strength: post.baseBloom, duration: 1.4, ease: 'power2.out' }, d * 0.45);

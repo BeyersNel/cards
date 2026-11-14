@@ -178,7 +178,6 @@ async function start() {
           reveal(mesh, lights, post, REVEAL, { reduced }).call(() => {
             setState('done');
             revealedAt = clock.elapsedTime;
-            gsap.to(lights.glint, { intensity: lights.glintIntensity, duration: 2 });
             showReading(card);
           });
         }),
@@ -202,7 +201,6 @@ async function start() {
     reading.classList.remove('is-visible');
     reading.inert = true;
     canvas.focus({ preventScroll: true });
-    gsap.to(lights.glint, { intensity: 0, duration: 0.8 });
     gsap.to(lights.key.target.position, { x: 0, y: 0, z: 0, duration: 2, ease: 'sine.inOut' });
     const { mesh, material } = drawn;
     dismiss(mesh, { reduced }).call(() => {
@@ -249,12 +247,6 @@ async function start() {
       drawn.mesh.position.y = REVEAL.position.y + Math.sin((t - revealedAt) * 0.9) * 0.06 * k;
       drawn.mesh.rotation.y = Math.sin((t - revealedAt) * 0.5) * 0.08 * k;
       drawn.mesh.rotation.x = Math.sin((t - revealedAt) * 0.7) * 0.04 * k;
-      // a small light drifts in front of the card so the foil keeps catching it
-      lights.glint.position.set(
-        drawn.mesh.position.x - 0.9 + Math.sin(t * 0.45) * 2.4,
-        drawn.mesh.position.y + Math.sin(t * 0.31 + 1) * 2.6,
-        drawn.mesh.position.z + 5,
-      );
     }
 
     if (!stepMode) post.render(t);
