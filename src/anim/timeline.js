@@ -34,116 +34,125 @@ export function arrive(deck, { reduced = false } = {}) {
   return tl;
 }
 
-/** Flow out into a current, riffle, and restack. Mutates deck.order. */
+/*
+ * No-clipping rule for every card motion below: cards only ever slide in
+ * x/y and turn about their own face normal (rotation.z). Their faces stay
+ * parallel and each card keeps a z-layer of its own, so no two cards can
+ * pass through each other. Depth and tilt come from moving the whole deck
+ * (deck.root), which keeps the cards parallel.
+ */
+
+/** Fan, riffle, and restack. Mutates deck.order. */
 export function shuffle(deck, { reduced = false } = {}) {
   const tl = gsap.timeline();
+  const root = deck.root;
   tl.to(deck, { floatAmount: 0.15, duration: 0.6, ease: 'sine.out' }, 0);
-  tl.to(deck.root.rotation, { x: 0, y: 0, z: 0, duration: 0.8, ease: 'sine.inOut' }, 0);
-  // pull back a little so the swirl stays inside the frame
+  tl.to(root.rotation, { x: 0, y: 0, z: 0, duration: 0.8, ease: 'sine.inOut' }, 0);
   const fs = deck.flowScale ?? 0.74;
-  tl.to(deck.root.scale, { x: fs, y: fs, z: fs, duration: 0.9, ease: 'sine.inOut' }, 0);
+  tl.to(root.scale, { x: fs, y: fs, z: fs, duration: 0.9, ease: 'sine.inOut' }, 0);
 
   const cards = deck.order.slice();
-
-  if (!reduced) {
-    // 1. flow: cards peel off the top and swirl into a spiralling arc
-    cards.forEach((m, i) => {
-      const t = i / (N - 1);
-      const a = -Math.PI * 0.85 + t * Math.PI * 1.7;
-      const r = 2.9 + Math.sin(t * Math.PI) * 0.7;
-      tl.to(
-        m.position,
-        {
-          x: Math.sin(a) * r,
-          y: Math.cos(a) * r * 0.32 - 0.9,
-          z: -1.6 + Math.cos(a) * 1.4 + i * 0.012,
-          duration: 1.25,
-          ease: 'power2.inOut',
-        },
-        0.15 + (1 - t) * 0.45,
-      );
-      tl.to(
-        m.rotation,
-        {
-          x: -0.25 + Math.cos(a) * 0.15,
-          y: Math.PI + Math.sin(a) * 0.35,
-          z: -a * 0.35,
-          duration: 1.25,
-          ease: 'power2.inOut',
-        },
-        0.15 + (1 - t) * 0.45,
-      );
-    });
-  }
-
-  // 2. riffle: split into two halves, then interleave
   const half = N / 2;
   const left = cards.slice(0, half);
   const right = cards.slice(half);
-  const splitAt = reduced ? 0.3 : 1.95;
-  const pose = (m, side, k) => ({
-    x: side * 1.75,
-    y: -0.15 + k * 0.004,
-    z: (k - half / 2) * 0.018,
-    rz: side * -0.22,
-  });
+
+  let splitAt = 0.3;
+  if (!reduced) {
+    // 1. flow: the deck opens into a wide fan around a pivot below it,
+    //    top cards first, while the whole fan tilts toward the viewer and sways
+    const PIVOT_Y = -1.7;
+    const R = 1.45;
+    const SPREAD = 1.95;
+    cards.forEach((m, i) => {
+      const t = i / (N - 1);
+      const phi = SPREAD * (t - 0.5);
+      const at = 0.15 + (1 - t) * 0.4;
+      tl.to(
+        m.position,
+        { x: Math.sin(phi) * R, y: PIVOT_Y + Math.cos(phi) * R, duration: 1.1, ease: 'power3.inOut' },
+        at,
+      );
+      tl.to(m.rotation, { z: phi, duration: 1.1, ease: 'power3.inOut' }, at);
+    });
+    tl.to(root.rotation, { x: 0.38, duration: 1.0, ease: 'sine.inOut' }, 0.4); // lean back, away from the key light
+    tl.to(root.rotation, { z: 0.22, duration: 0.6, ease: 'sine.inOut' }, 1.0);
+    tl.to(root.rotation, { z: -0.12, duration: 0.6, ease: 'sine.inOut' }, 1.6);
+    tl.to(root.rotation, { x: 0, z: 0, duration: 0.7, ease: 'sine.inOut' }, 2.2);
+    splitAt = 2.0;
+  }
+
+  // 2. riffle
+  //    a) the halves slide apart, each keeping its z-layers
+  const SPLIT_X = 1.85;
   [left, right].forEach((group, gi) => {
     const side = gi === 0 ? -1 : 1;
     group.forEach((m, k) => {
-      const p = pose(m, side, k);
-      tl.to(m.position, { x: p.x, y: p.y, z: p.z, duration: 0.7, ease: 'power3.inOut' }, splitAt + k * 0.006);
-      tl.to(m.rotation, { x: 0.12, y: Math.PI, z: p.rz, duration: 0.7, ease: 'power3.inOut' }, splitAt + k * 0.006);
+      const at = splitAt + k * 0.006;
+      tl.to(m.position, { x: side * SPLIT_X, y: -0.15 + k * 0.004, duration: 0.7, ease: 'power3.inOut' }, at);
+      tl.to(m.rotation, { z: side * -0.22, duration: 0.7, ease: 'power3.inOut' }, at);
     });
   });
 
-  // interleave: alternately drop from each half onto the new stack
+  //    b) once apart, the halves re-layer into the interleaved order: the
+  //       left half takes the even layers and the right half the odd ones.
+  //       Every card moves together, so the order inside each half holds.
   const newOrder = [];
-  for (let k = 0; k < half; k++) {
-    newOrder.push(left[k], right[k]);
-  }
-  const riffleAt = splitAt + 0.9;
+  for (let k = 0; k < half; k++) newOrder.push(left[k], right[k]);
+  const layerAt = splitAt + 0.85;
+  newOrder.forEach((m, i) => {
+    tl.to(m.position, { z: deck.stackPose(i, m).z, duration: 0.3, ease: 'sine.inOut' }, layerAt);
+  });
+
+  //    c) interleave: alternately drop each half's cards onto the new stack
+  const riffleAt = layerAt + 0.35;
   newOrder.forEach((m, i) => {
     const p = deck.stackPose(i, m);
     const at = riffleAt + i * 0.022;
-    tl.to(m.position, { x: p.x * 3, y: p.y + 0.12, z: p.z, duration: 0.28, ease: 'power2.in' }, at);
-    tl.to(m.rotation, { x: 0, y: p.ry, z: p.rz * 4, duration: 0.28, ease: 'power2.in' }, at);
+    tl.to(m.position, { x: p.x * 3, y: p.y + 0.12, duration: 0.28, ease: 'power2.in' }, at);
+    tl.to(m.rotation, { z: p.rz * 4, duration: 0.28, ease: 'power2.in' }, at);
   });
 
   // 3. restack: square the edges
   const squareAt = riffleAt + N * 0.022 + 0.2;
   newOrder.forEach((m, i) => {
     const p = deck.stackPose(i, m);
-    tl.to(m.position, { x: p.x, y: p.y, z: p.z, duration: 0.35, ease: 'back.out(2)' }, squareAt + (i % 4) * 0.01);
-    tl.to(m.rotation, { x: p.rx, y: p.ry, z: p.rz, duration: 0.35, ease: 'back.out(2)' }, squareAt + (i % 4) * 0.01);
+    const at = squareAt + (i % 4) * 0.01;
+    tl.to(m.position, { x: p.x, y: p.y, duration: 0.35, ease: 'back.out(2)' }, at);
+    tl.to(m.rotation, { z: p.rz, duration: 0.35, ease: 'back.out(2)' }, at);
   });
   tl.call(() => {
     deck.order = newOrder;
   }, null, squareAt);
   tl.to(deck, { floatAmount: 0.6, duration: 0.6 }, squareAt);
-  tl.to(deck.root.scale, { x: 1, y: 1, z: 1, duration: 0.6, ease: 'sine.inOut' }, squareAt - 0.3);
+  tl.to(root.scale, { x: 1, y: 1, z: 1, duration: 0.6, ease: 'sine.inOut' }, squareAt - 0.3);
   return tl;
 }
 
 /**
- * Pull the chosen card out of the middle of the stack, carry it forward,
- * and send the rest of the deck up and away into the fog.
+ * Pull the chosen card out of the middle of the stack, lift it clear above
+ * the deck, then carry it forward while the deck sinks away into the fog.
  */
 export function drawAndExit(deck, mesh, scene, revealPose, { reduced = false } = {}) {
   const tl = gsap.timeline();
   const idx = deck.order.indexOf(mesh);
   const home = deck.stackPose(idx, mesh);
+  const slide = reduced ? 0.4 : 0.85;
+  const lift = reduced ? 0.25 : 0.45;
 
-  // slide sideways out of the stack
-  tl.to(mesh.position, { x: home.x + 2.9, y: home.y + 0.15, duration: reduced ? 0.4 : 0.85, ease: 'power2.inOut' });
-  tl.to(mesh.rotation, { z: -0.12, duration: reduced ? 0.4 : 0.85, ease: 'sine.inOut' }, '<');
+  // slide sideways out of the stack, staying in its own layer
+  tl.to(mesh.position, { x: home.x + 2.9, y: home.y + 0.15, duration: slide, ease: 'power2.inOut' });
+  tl.to(mesh.rotation, { z: -0.12, duration: slide, ease: 'sine.inOut' }, '<');
+  // lift clear of the top of the deck before crossing back over it
+  const topZ = deck.stackPose(N - 1, mesh).z;
+  tl.to(mesh.position, { z: topZ + 0.6, duration: lift, ease: 'sine.out' });
 
   // reparent to the world so the deck can leave without it
   tl.call(() => scene.attach(mesh));
   tl.to(mesh.position, { ...revealPose.position, duration: reduced ? 0.6 : 1.3, ease: 'power3.inOut' }, '>');
   tl.to(mesh.rotation, { x: 0, y: Math.PI, z: 0, duration: reduced ? 0.6 : 1.3, ease: 'power2.inOut' }, '<');
 
-  // deck departs
-  const exitAt = reduced ? 0.4 : 0.95;
+  // the deck departs once the card is clear of it
+  const exitAt = slide + lift;
   tl.to(deck, { floatAmount: 0, duration: 0.5 }, exitAt);
   tl.to(
     deck.root.position,

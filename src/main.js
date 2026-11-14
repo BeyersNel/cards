@@ -265,6 +265,7 @@ async function start() {
       return debug.state;
     };
     window.__activate = begin;
+    debug.deck = deck; // for the headless overlap check
     post.render(0);
   } else {
     renderer.setAnimationLoop(tick);
