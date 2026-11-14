@@ -152,6 +152,19 @@ body[data-layout='below'] .reading__title {
   text-wrap: pretty;
 }
 
+.reading__next {
+  margin-top: 0.6em;
+  font-family: 'IM Fell English SC', serif;
+  font-size: 0.9em;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  opacity: 0.85;
+}
+
+[hidden] {
+  display: none !important;
+}
+
 .again {
   margin-top: 0.5em;
   padding: 0.5em 0;

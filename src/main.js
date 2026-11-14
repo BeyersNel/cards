@@ -17,6 +17,7 @@ import { CARDS, drawRandomCard } from './deck/cardData.js';
 import { arrive, shuffle, drawAndExit, reveal, dismiss } from './anim/timeline.js';
 import { createInput } from './input.js';
 import { loadArt } from './deck/textures/face.js';
+import { loadDraw, saveDraw, clearDraw, msUntilNextDraw, formatWait } from './drawLock.js';
 import { renderContactSheet } from './debug/contactSheet.js';
 
 const params = new URLSearchParams(location.search);
@@ -113,6 +114,12 @@ async function start() {
   const readingGloss = reading.querySelector('.reading__gloss');
   const readingProse = reading.querySelector('.reading__prose');
   const again = document.getElementById('again');
+  const nextDraw = document.getElementById('next-draw');
+
+  // One draw per 12 hours. `?card=N` (testing) bypasses the lock; `?reset`
+  // forgets the last draw.
+  const lockEnabled = !params.has('card') && !params.has('free');
+  if (params.has('reset')) clearDraw();
   const announcer = document.getElementById('announcer');
 
   // ------------------------------------------------------------ state
@@ -134,6 +141,7 @@ async function start() {
 
   const playArrival = () => {
     setState('arriving');
+    deck.root.visible = true;
     arrive(deck, { reduced }).call(() => {
       setState('idle');
       hint.classList.add('is-visible');
@@ -178,6 +186,7 @@ async function start() {
           reveal(mesh, lights, post, REVEAL, { reduced }).call(() => {
             setState('done');
             revealedAt = clock.elapsedTime;
+            if (lockEnabled) saveDraw(card.id);
             showReading(card);
           });
         }),
@@ -190,13 +199,50 @@ async function start() {
     readingMeta.textContent = `${card.label} · ${card.reading}`;
     readingGloss.textContent = card.gloss;
     readingProse.textContent = card.prose;
+    updateLock();
     reading.inert = false;
     reading.classList.add('is-visible');
     announcer.textContent = `${card.label}. ${card.reading}: ${card.title}, ${card.gloss}. ${card.prose}`;
   };
 
+  // While the last draw is under 12 hours old, "draw again" is replaced by
+  // a countdown; it comes back by itself once the window has passed.
+  const updateLock = () => {
+    const draw = lockEnabled ? loadDraw() : null;
+    again.hidden = !!draw;
+    nextDraw.hidden = !draw;
+    if (draw) nextDraw.textContent = `the deck rests · it returns in ${formatWait(msUntilNextDraw(draw))}`;
+  };
+  setInterval(() => {
+    if (state === 'done') updateLock();
+  }, 20_000);
+
+  /** Show a card drawn earlier (within the window) without replaying the draw. */
+  const restoreDraw = async (card) => {
+    setState('restoring');
+    debug.card = card.id;
+    deck.root.visible = false;
+    const [art] = await Promise.all([loadArt(card), fontsReady]);
+    const material = createFaceMaterial(card, renderer, art);
+    const mesh = deck.order[Math.floor(deck.order.length / 2)];
+    setFace(mesh, material);
+    scene.attach(mesh);
+    mesh.rotation.set(0, 0, 0);
+    mesh.scale.setScalar(REVEAL.scale);
+    mesh.position.set(REVEAL.position.x, REVEAL.position.y, REVEAL.position.z);
+    lights.key.target.position.copy(mesh.position);
+    drawn = { mesh, card, material };
+    // drift in out of the dark
+    gsap.from(mesh.position, { z: REVEAL.position.z - 4, duration: reduced ? 0.6 : 2.2, ease: 'power3.out' });
+    gsap.from(mesh.scale, { x: 0.8, y: 0.8, z: 0.8, duration: reduced ? 0.6 : 2.2, ease: 'power3.out' });
+    setState('done');
+    revealedAt = clock.elapsedTime;
+    showReading(card);
+  };
+
   again.addEventListener('click', () => {
     if (state !== 'done' || !drawn) return;
+    if (lockEnabled && loadDraw()) return updateLock();
     setState('resetting');
     reading.classList.remove('is-visible');
     reading.inert = true;
@@ -265,11 +311,15 @@ async function start() {
       return debug.state;
     };
     window.__activate = begin;
+    debug.updateLock = updateLock;
     debug.deck = deck; // for the headless overlap check
     post.render(0);
   } else {
     renderer.setAnimationLoop(tick);
   }
 
-  playArrival();
+  const saved = lockEnabled ? loadDraw() : null;
+  const savedCard = saved && CARDS.find((c) => c.id === saved.id);
+  if (savedCard) restoreDraw(savedCard);
+  else playArrival();
 }

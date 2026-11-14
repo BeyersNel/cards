@@ -15,6 +15,10 @@ Each card reads as **angle × domain = title** (from `cards.pdf`), for example d
 
 Pushes to `main` build with Vite and deploy to GitHub Pages via Actions (`.github/workflows/deploy-pages.yml`).
 
+## One card per 12 hours
+
+The drawn card and the time are saved in the browser's localStorage (`src/drawLock.js`). Until 12 hours have passed, reloading shows that card and its reading, with a countdown in place of "draw again"; after that the deck returns. The lock is per browser: clearing site data, a private window or another device starts fresh.
+
 ## Run
 
 ```bash
@@ -27,7 +31,9 @@ npm run dev
 | Flag | Effect |
 | --- | --- |
 | `?sheet` | Contact sheet of the back + all 52 framed fronts |
-| `?card=12` | Force a specific card (index 0–51; clubs, spades, hearts, diamonds × A–K) |
+| `?card=12` | Force a specific card (index 0–51; clubs, spades, hearts, diamonds × A–K); ignores the 12-hour lock |
+| `?reset` | Forget the last draw, so the deck appears again |
+| `?free` | Ignore the 12-hour lock without forcing a card |
 | `?fast` | Play every animation 4× faster |
 | `?lite` | Low-quality path (no bloom, fewer motes) |
 | `?step` | Freeze time; advance with `window.__advance(seconds)` (for headless capture) |
