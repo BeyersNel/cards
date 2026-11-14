@@ -8,8 +8,8 @@ import { READINGS } from './readings.js';
 
 export const SUITS = [
   { key: 'clubs', symbol: '♣', name: 'Clubs', angle: 'death', red: false },
-  { key: 'hearts', symbol: '♥', name: 'Hearts', angle: 'loneliness', red: true },
-  { key: 'spades', symbol: '♠', name: 'Spades', angle: 'meaning', red: false },
+  { key: 'spades', symbol: '♠', name: 'Spades', angle: 'loneliness', red: false },
+  { key: 'hearts', symbol: '♥', name: 'Hearts', angle: 'meaning', red: true },
   { key: 'diamonds', symbol: '♦', name: 'Diamonds', angle: 'freedom', red: true },
 ];
 

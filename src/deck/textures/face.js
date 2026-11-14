@@ -36,14 +36,13 @@ const FONT = '"IM Fell English SC", "Cormorant Garamond", Georgia, serif';
 // Illustrated fronts, keyed by card id. Cards without one fall back to the foil design.
 const PLATES = { 'A♣': paintSleep };
 
-// Painted artwork, keyed by card id, served from public/cards/.
-// Takes precedence over the hand-drawn plates when present.
-const ART = { 'A♣': 'ac-sleep.webp' };
+// Painted artwork lives in public/cards/<suit>-<rank>.webp (see art/prompts.json).
+// It takes precedence over the hand-drawn plates; a missing file falls back.
+const artFile = (card) => `${card.suit.key}-${card.rank.key}.webp`;
 
 /** Load a card's painting, or resolve null if it has none or it fails. */
 export function loadArt(card) {
-  const file = ART[card.id];
-  if (!file) return Promise.resolve(null);
+  const file = artFile(card);
   return new Promise((resolve) => {
     const img = new Image();
     img.decoding = 'async';

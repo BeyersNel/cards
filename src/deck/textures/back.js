@@ -1,6 +1,6 @@
 // The shared card back, in gold foil on black: a wheel of thirteen moons
-// (one for each rank) turning around a ragged moon, an eye watching from inside it,
-// the four suits in the corners and tentacles reaching out between them.
+// (one for each rank) turning around a ragged moon, an eye watching from
+// inside it, and the four suits in the corners.
 
 import { suitGlyph } from './glyphs.js';
 import {
@@ -11,7 +11,6 @@ import {
   composeCard,
   distress,
   vine,
-  tentacle,
   runeRing,
   thornRing,
   ring,
@@ -93,34 +92,6 @@ function frame(L) {
     c.stroke();
     c.restore();
   }
-}
-
-function tentacles(L, rng) {
-  const c = L.gold;
-  c.save();
-  c.beginPath();
-  c.roundRect(62, 62, W - 124, H - 124, 30);
-  c.clip();
-  for (let q = 0; q < 4; q++) {
-    const diagonal = Math.PI / 4 + (q * TAU) / 4;
-    for (const s of [-1, 1]) {
-      // lean toward the top and bottom, where there is room
-      const vertical = Math.sin(diagonal) * Math.cos(diagonal) > 0 ? 1 : -1;
-      const a = diagonal + vertical * 0.34 + s * 0.2;
-      tentacle(c, {
-        x: CX + Math.cos(a) * 335,
-        y: CY + Math.sin(a) * 335,
-        angle: a,
-        length: 270,
-        width: 40,
-        curl: s * 3,
-        gap: 5,
-        wobble: 1,
-        phase: rng() * 6,
-      });
-    }
-  }
-  c.restore();
 }
 
 function wheel(L, rng) {
@@ -306,7 +277,6 @@ export function paintBack() {
   const rng = mulberry32(1931); // the year "The Shadow over Innsmouth" was written
 
   filigree(L);
-  tentacles(L, rng);
   frame(L);
   wheel(L, rng);
   eye(L);

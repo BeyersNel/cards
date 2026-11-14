@@ -98,7 +98,7 @@ export function createSharedMaterials(renderer) {
 
 /** A unique, full-detail face material for the drawn card. */
 export function createFaceMaterial(card, renderer, art = null) {
-  const material = foilMaterial(paintFace(card, art), renderer, 0.3);
+  const material = foilMaterial(paintFace(card, art), renderer, 0.08);
   for (const t of [material.map, material.emissiveMap, material.roughnessMap]) renderer.initTexture(t);
   return material;
 }

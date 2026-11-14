@@ -38,7 +38,7 @@ export function createLighting(scene, renderer) {
     candle,
     flash,
     glint,
-    glintIntensity: 8,
+    glintIntensity: 3,
     update(t) {
       const f =
         Math.sin(t * 7.3) * 0.5 +

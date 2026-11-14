@@ -47,7 +47,7 @@ export function createPost(renderer, scene, camera, { lite = false, noBloom = fa
     new THREE.Vector2(size.x / (lite ? 2 : 1), size.y / (lite ? 2 : 1)),
     0.75,
     0.7,
-    0.62,
+    0.8,
   );
   bloom.enabled = !noBloom;
   composer.addPass(bloom);

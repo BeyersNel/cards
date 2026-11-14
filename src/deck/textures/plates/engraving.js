@@ -277,14 +277,14 @@ export function paintPlate(card, scene) {
 
   const orm = makeCanvas(W, H);
   let o = orm.getContext('2d');
-  o.fillStyle = 'rgb(0, 220, 0)'; // matte paper: rough, not metal
+  o.fillStyle = 'rgb(0, 245, 0)'; // matte paper: very rough, not metal
   o.fillRect(0, 0, W, H);
 
   const emissive = makeCanvas(W, H);
   o = emissive.getContext('2d');
   o.fillStyle = '#000';
   o.fillRect(0, 0, W, H);
-  o.globalAlpha = 0.45;
+  o.globalAlpha = 1;
   o.drawImage(color, 0, 0);
 
   return { color, orm, emissive };
